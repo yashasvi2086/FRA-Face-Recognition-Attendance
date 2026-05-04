@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Feed - FRA</title>
+
+    <!-- Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+<div class="dashboard">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar">
+        <div class="logo-container">
+            <div class="logo-icon"><i class="bi bi-camera"></i></div>
+
+            <div class="logo-text-container">
+                <span class="logo-text mono">FRA</span>
+                <span class="logo-subtext">Face Recognition Attendance</span>
+            </div>
+        </div>
+
+        <nav>
+            <a href="/"><i class="bi bi-grid-1x2"></i> Dashboard</a>
+            <a href="/mark_attendance" class="active"><i class="bi bi-camera-video"></i> Live Feed</a>
+            <a href="/students_list"><i class="bi bi-person-plus"></i> People DB</a>
+            <a href="/attendance_record"><i class="bi bi-file-text"></i> Logs</a>
+        </nav>
+    </aside>
+
+    <!-- ===== MAIN ===== -->
+    <main class="main centered">
+
+        <!-- HEADER -->
+        <div class="page-header mb-4">
+            <div>
+                <h1>Live Camera Feed</h1>
+                <p class="mono">BIOMETRIC SCANNER — Realtime Inference</p>
+            </div>
+
+            <div class="wireframe-badge">
+                <i class="bi bi-camera-video"></i> CAMERA_ACTIVE
+            </div>
+        </div>
+
+        <!-- CAMERA BLOCK -->
+        <div class="wf-block padded">
+            <span class="wf-label">Camera Array 01</span>
+
+            <div class="feed-container">
+                <div class="feed-live-badge">
+                    <div class="live-dot"></div>
+                    <span class="mono live-text">LIVE</span>
+                </div>
+
+                <video id="video" autoplay muted playsinline></video>
+            </div>
+
+            <!-- BUTTONS -->
+            <div class="btn-row">
+                <button id="startBtn" class="btn btn-cyan">
+                    <i class="bi bi-play-fill"></i> Initialize Camera
+                </button>
+
+                <button id="markBtn" class="btn btn-emerald" disabled>
+                    <i class="bi bi-person-view"></i> Run Inference
+                </button>
+            </div>
+
+            <!-- STATUS -->
+            <div class="status-container">
+                <div id="statusText" class="mono status-box">
+                    WAITING_FOR_INITIALIZATION...
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<script>
+let video = document.getElementById("video");
+let startBtn = document.getElementById("startBtn");
+let markBtn = document.getElementById("markBtn");
+let statusText = document.getElementById("statusText");
+let stream = null;
+
+/* START CAMERA */
+startBtn.addEventListener("click", async () => {
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+
+        video.onloadedmetadata = () => {
+            statusText.innerHTML = "SYSTEM_ONLINE: CAMERA_ACTIVE";
+            statusText.style.color = "#34d399";
+
+            markBtn.disabled = false;
+            startBtn.disabled = true;
+        };
+
+    } catch (err) {
+        alert("Camera error: " + err.message);
+    }
+});
+
+/* RUN INFERENCE */
+markBtn.addEventListener("click", async () => {
+
+    // Safety: ensure video is ready
+    if (!video.videoWidth || !video.videoHeight) {
+        alert("Camera not ready yet");
+        return;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0);
+
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg"));
+
+    if (!blob) {
+        alert("Capture failed");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", blob);
+
+    statusText.innerHTML = "INFERENCE_RUNNING...";
+    statusText.style.color = "#22d3ee";
+
+    try {
+        const res = await fetch("/recognize_face", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+            statusText.innerHTML = `ALERT: ${data.error.toUpperCase().replace(/ /g, '_')}`;
+            statusText.style.color = "#f87171";
+        } else if (data.results && data.results.length > 0) {
+            let matches = data.results
+                .filter(r => r.recognized)
+                .map(r => r.name);
+
+            if (matches.length > 0) {
+                statusText.innerHTML = `MATCH_FOUND: [${matches.join(', ')}]`;
+                statusText.style.color = "#34d399";
+            } else {
+                statusText.innerHTML = "ALERT: FACE_NOT_RECOGNIZED";
+                statusText.style.color = "#f87171";
+            }
+
+        } else {
+            statusText.innerHTML = "ALERT: NO_FACE_DETECTED";
+            statusText.style.color = "#f87171";
+        }
+
+    } catch (err) {
+        statusText.innerHTML = "ERR: DETECTION_FAILED";
+        statusText.style.color = "#f87171";
+    }
+});
+</script>
+
+</body>
+</html>

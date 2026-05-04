@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logs - FRA</title>
+
+    <!-- Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+<div class="dashboard">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar">
+        <div class="logo-container">
+            <div class="logo-icon"><i class="bi bi-camera"></i></div>
+
+            <div class="logo-text-container">
+                <span class="logo-text mono">FRA</span>
+                <span class="logo-subtext">Face Recognition Attendance</span>
+            </div>
+        </div>
+
+        <nav>
+            <a href="/"><i class="bi bi-grid-1x2"></i> Dashboard</a>
+            <a href="/mark_attendance"><i class="bi bi-camera-video"></i> Live Feed</a>
+            <a href="/students_list"><i class="bi bi-person-plus"></i> People DB</a>
+            <a href="/attendance_record" class="active"><i class="bi bi-file-text"></i> Logs</a>
+        </nav>
+    </aside>
+
+    <!-- ===== MAIN ===== -->
+    <main class="main centered">
+
+        <!-- HEADER -->
+        <div class="page-header mb-4">
+            <div>
+                <h1>Recent Activity</h1>
+                <p class="mono">SYSTEM LOGS — Verified Matches</p>
+            </div>
+
+            <div>
+                <a href="/download_csv" class="btn btn-emerald">
+                    <i class="bi bi-download"></i> Export Data
+                </a>
+            </div>
+        </div>
+
+        <!-- FILTER BUTTONS -->
+        <div class="filter-row">
+
+            <a href="/attendance_record"
+               class="btn {% if not period or period == 'all' %}btn-cyan{% else %}btn-outline{% endif %}">
+                <i class="bi bi-funnel"></i> All
+            </a>
+
+            <a href="/attendance_record?period=daily"
+               class="btn {% if period == 'daily' %}btn-cyan{% else %}btn-outline{% endif %}">
+                Daily
+            </a>
+
+            <a href="/attendance_record?period=weekly"
+               class="btn {% if period == 'weekly' %}btn-cyan{% else %}btn-outline{% endif %}">
+                Weekly
+            </a>
+
+            <a href="/attendance_record?period=monthly"
+               class="btn {% if period == 'monthly' %}btn-cyan{% else %}btn-outline{% endif %}">
+                Monthly
+            </a>
+
+        </div>
+
+        <!-- LOG BLOCK -->
+        <div class="wf-block padded">
+            <span class="wf-label">Activity Feed</span>
+
+            <div class="activity-list">
+
+                {% for r in records %}
+                <div class="activity-item">
+
+                    <div class="activity-left">
+                        <div class="avatar">
+                            <i class="bi bi-person-bounding-box"></i>
+                        </div>
+
+                        <div>
+                            <p class="act-name">{{ r[2] }}</p>
+                            <p class="act-time mono">
+                                ID {{ r[1] }} • {{ r[3][:10] }} • {{ r[3][11:19] }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="activity-right">
+                        <p class="act-score mono">99.4%</p>
+                        <span class="badge-match mono">MATCH</span>
+                    </div>
+
+                </div>
+
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-shield-lock"></i>
+                    <p>No activity logged.</p>
+                </div>
+                {% endfor %}
+
+            </div>
+        </div>
+
+    </main>
+</div>
+
+</body>
+</html>

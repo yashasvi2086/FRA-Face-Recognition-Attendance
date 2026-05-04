@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>People DB - FRA</title>
+
+    <!-- Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Bootstrap (for grid only) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+<div class="dashboard">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar">
+        <div class="logo-container">
+            <div class="logo-icon"><i class="bi bi-camera"></i></div>
+
+            <div class="logo-text-container">
+                <span class="logo-text mono">FRA</span>
+                <span class="logo-subtext">Face Recognition Attendance</span>
+            </div>
+        </div>
+
+        <nav>
+            <a href="/"><i class="bi bi-grid-1x2"></i> Dashboard</a>
+            <a href="/mark_attendance"><i class="bi bi-camera-video"></i> Live Feed</a>
+            <a href="/students_list" class="active"><i class="bi bi-person-plus"></i> People DB</a>
+            <a href="/attendance_record"><i class="bi bi-file-text"></i> Logs</a>
+        </nav>
+    </aside>
+
+    <!-- ===== MAIN ===== -->
+    <main class="main centered">
+
+        <!-- HEADER -->
+        <div class="page-header mb-4">
+            <div>
+                <h1>People Database</h1>
+                <p class="mono">NEW ENTRY — Vector Target Registration</p>
+            </div>
+            <div class="wireframe-badge mono">REGISTRATION_MODE</div>
+        </div>
+
+        <!-- FORM BLOCK -->
+        <div class="wf-block padded">
+            <span class="wf-label">Identity Payload</span>
+
+            <form id="studentForm">
+                <div class="row g-4">
+
+                    <div class="col-md-6">
+                        <label class="form-label mono">ID_FULL_NAME</label>
+                        <input class="form-control" name="name" required>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label mono">ROLL_NO</label>
+                        <input class="form-control mono" name="roll">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label mono">REG_NO</label>
+                        <input class="form-control mono" name="reg_no">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label mono">CLASS_GROUP</label>
+                        <input class="form-control" name="class">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label mono">SECTION_UNIT</label>
+                        <input class="form-control" name="sec">
+                    </div>
+
+                </div>
+
+                <div class="btn-row">
+                    <button id="saveInfoBtn" type="submit" class="btn btn-cyan">
+                        <i class="bi bi-save"></i> Save Target Data
+                    </button>
+
+                    <button id="startCaptureBtn" type="button" class="btn btn-warning" disabled>
+                        <i class="bi bi-camera"></i> Capture Biometrics
+                    </button>
+
+                    <button id="addStudentBtn" type="button" class="btn btn-emerald" disabled>
+                        <i class="bi bi-cloud-arrow-up"></i> Upload Vectors
+                    </button>
+                </div>
+            </form>
+
+            <div class="divider"></div>
+
+            <!-- CAMERA BLOCK -->
+            <div class="feed-container">
+                <video id="video" autoplay muted></video>
+
+                <div class="capture-overlay">
+                    <div id="captureStatus" class="mono">
+                        AWAITING_CAPTURE... [0/50]
+                    </div>
+
+                    <div class="progress">
+                        <div id="progressBar" class="progress-bar"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<script>
+let studentId = null;
+let capturedImages = [];
+let video = document.getElementById("video");
+let stream = null;
+
+const form = document.getElementById("studentForm");
+const startCaptureBtn = document.getElementById("startCaptureBtn");
+const addStudentBtn = document.getElementById("addStudentBtn");
+const captureStatus = document.getElementById("captureStatus");
+const progressBar = document.getElementById("progressBar");
+
+/* SAVE STUDENT */
+form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const fd = new FormData(form);
+
+    try {
+        const res = await fetch("/add_student", { method: "POST", body: fd });
+        const data = await res.json();
+
+        if (data.student_id) {
+            studentId = data.student_id;
+
+            captureStatus.innerHTML = "DATA_SAVED. AWAITING_BIOMETRICS...";
+            captureStatus.style.color = "#34d399";
+
+            startCaptureBtn.disabled = false;
+        } else {
+            alert(data.error);
+        }
+    } catch {
+        alert("Failed to save info");
+    }
+});
+
+/* START CAMERA + CAPTURE */
+startCaptureBtn.addEventListener("click", async () => {
+    startCaptureBtn.disabled = true;
+    capturedImages = [];
+
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+
+        let count = 0;
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        video.onloadedmetadata = () => {
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+
+            const interval = setInterval(() => {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                canvas.toBlob((blob) => {
+                    if (!blob) return;
+
+                    capturedImages.push(blob);
+                    count++;
+
+                    captureStatus.innerHTML = `CAPTURING... [${count}/50]`;
+                    captureStatus.style.color = "#22d3ee";
+                    progressBar.style.width = (count * 2) + "%";
+
+                    if (count >= 50) {
+                        clearInterval(interval);
+
+                        stream.getTracks().forEach(t => t.stop());
+
+                        addStudentBtn.disabled = false;
+
+                        captureStatus.innerHTML = "CAPTURE_COMPLETE. READY_FOR_UPLOAD.";
+                        captureStatus.style.color = "#34d399";
+                    }
+
+                }, "image/jpeg", 0.9);
+
+            }, 120);
+        };
+
+    } catch (err) {
+        alert("Camera error");
+        startCaptureBtn.disabled = false;
+    }
+});
+
+/* UPLOAD */
+addStudentBtn.addEventListener("click", async () => {
+    if (!studentId || capturedImages.length === 0) return;
+
+    addStudentBtn.disabled = true;
+
+    const fd = new FormData();
+    fd.append("student_id", studentId);
+
+    capturedImages.forEach((blob, i) => {
+        fd.append("images[]", blob, `${i}.jpg`);
+    });
+
+    try {
+        captureStatus.innerHTML = "UPLOADING_VECTORS...";
+
+        await fetch("/upload_face", { method: "POST", body: fd });
+
+        alert("UPLOAD COMPLETE");
+        window.location.href = "/";
+    } catch {
+        alert("Upload failed");
+        addStudentBtn.disabled = false;
+    }
+});
+</script>
+
+</body>
+</html>
