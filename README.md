@@ -33,3 +33,37 @@ A smart attendance system using face recognition with OpenCV and deep learning.
 - Mobile app integration
 - Cloud deployment
 - Multi-user support
+
+## 📸 Demo
+(Add screenshots here)
+
+## 🧠 How It Works
+Explain pipeline:
+1. Face Detection
+2. Face Encoding
+3. Matching
+4. Attendance marking
+
+## 📊 Algorithm Used
+- CNN / face_recognition
+- Euclidean distance
+
+## ⚙️ Installation
+```bash
+pip install -r requirements.txt
+python app.py
+
+
+👉 This makes interviewer understand instantly.
+
+---
+
+# 📸 2. Add screenshots (BIG IMPACT)
+
+Create folder:
+
+```bash
+mkdir images
+
+
+![Demo](images/demo.png)
